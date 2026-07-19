@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Trained weights and datasets (large binaries — distribute via Releases instead)
+*.pt
+*.pth
+*.npz
+
+# Experiment outputs
+runs/
+logs/
+results/
+*.log
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
