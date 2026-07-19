@@ -1,15 +1,15 @@
-# Mamba-Based Disturbance Prediction for Adaptive Tube MPC of Wheeled Mobile Robots
+# Online Disturbance-Adaptive Tube MPC of WMR: A Predictor-Agnostic Framework Validated with a Mamba State-Space Predictor
 
 Official code repository for the paper:
 
-> Q. Huang, F. Zhu, X. Zhu, "Mamba-Based Disturbance Prediction for Adaptive Tube Model Predictive Control of Wheeled Mobile Robots," submitted to *Mechatronics*, 2026.
+> Q. Huang, F. Zhu, X. Zhu, "Online Disturbance-Adaptive Tube Model Predictive Control of Wheeled Mobile Robots: A Predictor-Agnostic Framework Validated with a Mamba State-Space Predictor," submitted to *Mechatronics*, 2026.
 
 ## Overview
 
-Classical tube MPC fixes the tube width offline: a narrow tube is violated repeatedly, while a conservative one degenerates toward standard MPC. This project sizes the tube **online** from a learned forecast of the disturbance-induced error evolution:
+Classical tube MPC fixes the tube width offline: a narrow tube is violated repeatedly, while a conservative one degenerates toward standard MPC. This project sizes the tube **online** from a forecast of the disturbance-induced error evolution, behind a **predictor-agnostic interface**:
 
-- A compact **Mamba** network maps the 100 most recent tracking-error samples to a 10-step forecast of the error evolution. The disturbance itself is unmeasurable; the error sequence is its observable trace through the closed loop.
-- A sizing law `w = max(w_min, w_base + κ · max_i ‖ê_i‖)` converts the forecast into the tube half-width at every control cycle (`w_base = 0.02 m`, `w_min = 0.08 m`, `κ = 1.0`).
+- A compact **Mamba** network maps the 100 most recent tracking-error samples to a 10-step forecast of the error evolution. The disturbance itself is unmeasurable; the error sequence is its observable trace through the closed loop. Mamba is the recommended predictor on open-loop accuracy, cross-trajectory generalization, and sequence-length scaling — but it is one pluggable option, not the source of the closed-loop benefit.
+- A sizing law `w = max(w_min, w_base + κ · max_i ‖ê_i‖)` converts the forecast into the tube half-width at every control cycle (`w_base = 0.02 m`, `w_min = 0.08 m`, `κ = 1.0`). The calibrated envelope is a property of this law, not of the forecaster's expressive power.
 - The MPC optimization keeps the nominal kinematic model (CasADi + IPOPT, horizon N = 10 at 10 Hz); the learned component reshapes the robustness margin only.
 
 ## Key results (simulation)
@@ -18,12 +18,14 @@ Classical tube MPC fixes the tube width offline: a narrow tube is violated repea
 |---|---|
 | Open-loop prediction error vs. matched LSTM | **−29.3%** test MSE, with **11.7% fewer parameters** (236,436 vs. 267,668), on a held-out spiral trajectory family |
 | Calibrated boundary coverage (κ = 1.0) | **100%** at the tightest mean tube width (0.090 m); under-calibrated κ < 1 retains only 85.5% |
+| Predictor-agnostic property (iid disturbance) | training-free persistence / moving-average forecasts match Mamba in closed loop across a three-fold amplitude range (`exp11_naive_baseline.py`) |
+| Predictor-agnostic property (AR(1), φ = 0.95) | all four predictors statistically indistinguishable in closed loop; mechanism traced to the path-induced deterministic error component (`exp12_ar1_correlated.py`, `exp12b_whitening_check.py`) |
 | Zero-shot RMSE on unseen square path | **0.1958 m** (−15.4% vs. standard MPC, p < 0.001) |
 | Zero-shot RMSE on unseen Lissajous path | **0.0902 m** (−9.8% vs. standard MPC, p < 0.001) |
 | Full pipeline cycle time | **3.7 ms** — a 27× real-time margin at 10 Hz |
 | Non-ideal conditions | graceful degradation under nine injected conditions (delay, packet loss, velocity scaling, measurement noise) |
 
-All closed-loop results are averaged over 10 seeds (800 evaluated steps per run after warm-up); pairwise comparisons use Welch's t-test with Cohen's d effect sizes.
+All closed-loop results are averaged over 10 seeds (800 evaluated steps per run after warm-up); pairwise comparisons use Welch's t-test with Cohen's d effect sizes. Post-hoc configurations (F/G of Table III, Section 5.9) are reported as exploratory and are not part of the pre-specified confirmatory set of Appendix A.
 
 ## Repository structure
 
@@ -36,6 +38,9 @@ Code and data-generation scripts are being uploaded. Planned layout:
 ├── train_mamba_v3.py         # main Mamba predictor training recipe
 ├── exp23_train_all.py        # prediction-horizon & data-scale scans (v4, fixed seed 42)
 ├── sim_core_np.py            # closed-loop simulation core (modes: mamba / lstm / fixed / ekf / standard / model)
+├── exp11_naive_baseline.py   # configurations F/G: training-free predictors through the same sizing-law interface
+├── exp12_ar1_correlated.py   # Section 5.9: AR(1) temporally correlated disturbance, 4 predictors × 10 seeds
+├── exp12b_whitening_check.py # Section 5.9 mechanism diagnostic: disturbance vs. error autocorrelation
 └── exp*.py                   # closed-loop experiments (scenarios, ablation, κ sweep, generalization, non-ideal conditions)
 ```
 
