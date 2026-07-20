@@ -18,30 +18,53 @@ Classical tube MPC fixes the tube width offline: a narrow tube is violated repea
 |---|---|
 | Open-loop prediction error vs. matched LSTM | **−29.3%** test MSE, with **11.7% fewer parameters** (236,436 vs. 267,668), on a held-out spiral trajectory family |
 | Calibrated boundary coverage (κ = 1.0) | **100%** at the tightest mean tube width (0.090 m); under-calibrated κ < 1 retains only 85.5% |
-| Predictor-agnostic property (iid disturbance) | training-free persistence / moving-average forecasts match Mamba in closed loop across a three-fold amplitude range (`exp11_naive_baseline.py`) |
-| Predictor-agnostic property (AR(1), φ = 0.95) | all four predictors statistically indistinguishable in closed loop; mechanism traced to the path-induced deterministic error component (`exp12_ar1_correlated.py`, `exp12b_whitening_check.py`) |
+| Predictor-agnostic property (iid disturbance) | training-free persistence / moving-average forecasts match Mamba in closed loop across a three-fold amplitude range |
+| Predictor-agnostic property (AR(1), φ = 0.95) | all four predictors statistically indistinguishable in closed loop; mechanism traced to the path-induced deterministic error component |
 | Zero-shot RMSE on unseen square path | **0.1958 m** (−15.4% vs. standard MPC, p < 0.001) |
 | Zero-shot RMSE on unseen Lissajous path | **0.0902 m** (−9.8% vs. standard MPC, p < 0.001) |
 | Full pipeline cycle time | **3.7 ms** — a 27× real-time margin at 10 Hz |
 | Non-ideal conditions | graceful degradation under nine injected conditions (delay, packet loss, velocity scaling, measurement noise) |
 
-All closed-loop results are averaged over 10 seeds (800 evaluated steps per run after warm-up); pairwise comparisons use Welch's t-test with Cohen's d effect sizes. Post-hoc configurations (F/G of Table III, Section 5.9) are reported as exploratory and are not part of the pre-specified confirmatory set of Appendix A.
+All closed-loop results are averaged over 10 seeds (800 evaluated steps per run after warm-up); pairwise comparisons use Welch's t-test with Cohen's d effect sizes. Post-hoc analyses (configurations F/G, the φ-sensitivity scan, the zero-shot extension) are reported as exploratory and are never mixed into the pre-specified confirmatory set of Appendix A. The two central naive-predictor comparisons are extended to 30 paired seeds with TOST equivalence testing at a pre-stated ±1 mm margin.
 
 ## Repository structure
 
-Code and data-generation scripts are being uploaded. Planned layout:
-
 ```
-├── collect_data_v3.py        # v3 training corpus collection (3 path families × 5 disturbance profiles × 20 episodes)
-├── collect_data_v4*.py       # v4 corpus (30-step prediction target)
-├── generalization_spiral.py  # held-out spiral test-set generation (open-loop evaluation)
-├── train_mamba_v3.py         # main Mamba predictor training recipe
-├── exp23_train_all.py        # prediction-horizon & data-scale scans (v4, fixed seed 42)
-├── sim_core_np.py            # closed-loop simulation core (modes: mamba / lstm / fixed / ekf / standard / model)
-├── exp11_naive_baseline.py   # configurations F/G: training-free predictors through the same sizing-law interface
-├── exp12_ar1_correlated.py   # Section 5.9: AR(1) temporally correlated disturbance, 4 predictors × 10 seeds
-├── exp12b_whitening_check.py # Section 5.9 mechanism diagnostic: disturbance vs. error autocorrelation
-└── exp*.py                   # closed-loop experiments (scenarios, ablation, κ sweep, generalization, non-ideal conditions)
+├── code/                     # closed-loop simulation library
+│   ├── sim_core_np.py        #   simulation core: WMR model, CasADi/IPOPT tube MPC,
+│   │                         #   EKF, sizing law, metrics; run_sim modes:
+│   │                         #   mamba / lstm / fixed / ekf / standard / model
+│   ├── mamba_predictor.py    #   Mamba disturbance-predictor definition
+│   ├── lstm_predictor.py     #   matched-skeleton LSTM baseline
+│   └── pub_style.py          #   publication figure style helpers
+├── experiments/              # post-hoc experiment drivers (Sections 5.3, 5.6, 5.9)
+│   ├── exp11_naive_baseline.py   # F/G: persistence & moving-average through the same interface
+│   ├── exp11b_naive_higcamp.py   # naive baselines at 2x/3x disturbance amplitude
+│   ├── exp12_ar1_correlated.py   # AR(1) correlated disturbance, phi = 0.95, 4 predictors
+│   ├── exp12b_whitening_check.py # mechanism diagnostic: disturbance vs. error autocorrelation
+│   ├── exp13_ar1_phi_scan.py     # phi = 0.5 / 0.7 sensitivity check
+│   ├── exp14_zeroshot_naive.py   # zero-shot generalization of training-free forecasters
+│   ├── exp17_seeds30.py          # seeds 10-29 top-up (pooled to 30 paired seeds for TOST)
+│   ├── exp18_longhorizon.py      # 300 s envelope-stability check
+│   ├── exp19_pool30_verify.py    # pooled 30-seed Welch + TOST verification utility
+│   └── exp20_tost_verify.py      # TOST reproduction utility for the AR(1) experiments
+├── models/                   # trained weights and normalization statistics
+│   ├── best_mamba_v3.pt      #   main Mamba predictor (all closed-loop results)
+│   ├── best_lstm_model.pt    #   main LSTM baseline
+│   ├── best_mamba_seq100.pt, best_mamba_seq200.pt,
+│   ├── best_lstm_seq100.pt,  best_lstm_seq200.pt   # sequence-length study (Section 5.7)
+│   ├── best_mamba_v4_pl5.pt ... best_mamba_v4_pl30.pt  # prediction-horizon scan (Section 5.2)
+│   └── norm_params_v3.npz, norm_params_v4.npz,
+│       norm_params_seq200.npz                       # input/output normalization statistics
+├── LICENSE                   # MIT
+└── README.md
+```
+
+The scripts import `sim_core_np` and expect the weight/normalization files in the working directory, so place the contents of `code/` and `models/` in one folder (or on `PYTHONPATH`) before running, e.g.:
+
+```bash
+mkdir run && cp code/* models/* run/ && cd run
+python exp11_naive_baseline.py     # reproduces configurations F/G of Table III
 ```
 
 ## Environment
@@ -55,10 +78,9 @@ Reference platform: Lenovo Legion Y7000P IRH8 (i7-13700H, RTX 4060 Laptop 8 GB),
 
 ## Reproducing the results
 
-1. Install the dependencies above (mamba-ssm requires a CUDA-capable PyTorch build).
-2. Generate the training corpora with the data-collection scripts.
-3. Train the predictor (`train_mamba_v3.py`; design scans in `exp23_train_all.py`).
-4. Run the closed-loop experiments through `sim_core_np.py` and the `exp*.py` drivers; seeds 0–9 reproduce the statistics reported in the paper.
+The repository reproduces the closed-loop experiments end-to-end: simulation core, trained weights, normalization statistics, and the experiment drivers are all included. Seeds 0–9 (and 10–29 for the TOST extension) reproduce the statistics reported in the paper for the post-hoc studies.
+
+The training-data generation and predictor-training scripts are not included in this release; they will be added upon publication. The main closed-loop results (Tables I–VIII) are produced by the same `sim_core_np.py` core included here, driven by the scenario scripts of the main experimental campaign.
 
 ## Citation
 
