@@ -1,17 +1,6 @@
 # -*- coding: utf-8 -*-
-"""exp14_zeroshot_naive.py - Zero-shot generalization of training-free forecasters (Section 5.6 supplement).
-
-ma10 / persistence on the unseen square and lissajous trajectories, 10 seeds,
-same protocol as Section 5.6; mamba re-run as a same-seed reference.
-Post-hoc, exploratory.
-
-Reported results (RMSE, m):
-  square:    mamba 0.1958+-0.0012 (cov 0.81) | ma10 0.1833+-0.0006 (cov 0.66)
-             | persist 0.1790+-0.0006 (cov 1.00);  p < 1e-12 vs mamba
-  lissajous: mamba 0.0902+-0.0002 (cov 0.93) | ma10 0.0867+-0.0003 (cov 0.91)
-             | persist 0.0897+-0.0003 (cov 1.00)
-Closed-loop generalization does not favour the learned predictor either;
-mechanism: tube-bookkeeping channel of Section 5.9 (wider tube -> weaker tracking penalty).
+"""exp14_zeroshot_naive.py - 免训练预测器的零样本泛化对照（补§5.6证据缺口）
+ma10/persistence 在 square 和 lissajous 未训练轨迹上的表现 vs mamba（同种子参照）。
 """
 import numpy as np
 import torch
