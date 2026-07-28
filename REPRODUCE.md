@@ -15,3 +15,13 @@
 | 900 s 长时域 | exp18_longhorizon.py（+ S4 协议） | exp18_*.npz |
 
 所有脚本固定随机种子；在 mambampc 环境下从仓库根目录运行。
+
+## 训练语料指纹（training_data_v3.npz，由 training/collect_data_v3.py 生成）
+
+- sha256: `06933774a013f42e45772d48c7f2bd0ac018e2512e868c1c2b0727056cefe262`
+- `X_train (117000, 100, 2) float64`，均值 −0.000554，标准差 0.05525
+- `Y_train (117000, 10, 2) float64`，均值 −0.003664，标准差 0.05522
+- `X_test (15600, 100, 2) float64`，均值 −0.003854，标准差 0.02766
+- `Y_test (15600, 10, 2) float64`，均值 −0.004950，标准差 0.02587
+
+复现者可用 `sha256sum training_data_v3.npz` 与上述统计指纹核对语料一致性。
